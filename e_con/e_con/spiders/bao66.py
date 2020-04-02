@@ -2,7 +2,9 @@
 import scrapy
 import re
 from e_con.items import EConItem
-
+import time
+from lxml import etree
+import requests
 
 class Bao66Spider(scrapy.Spider):
     name = 'bao66'
@@ -83,14 +85,52 @@ class Bao66Spider(scrapy.Spider):
         for cate in categorys:
             cate_dict = {}
             cate_dict['产品类型'] = cate.xpath('./a/text()').extract_first()
+            type_url_str = cate.xpath('.//a/@href').extract_first()
+            type_url = response.urljoin(type_url_str)
+            type_url = type_url.replace('0.html', '1.html')
+
             nums = cate.xpath('./a/span/text()').extract_first()
             cate_dict['产品数量'] = int(nums) if nums != '' else 0
             sell_counts += cate_dict['产品数量']
             sell_type.append(cate_dict)
+
+            self.type_url_parse(type_url, cate_dict['产品类型'], )
         cates = []
         for i in sell_type:
             cates.append(i['产品类型'])
         item['main_puduct'] = '/'.join(cates)
+        today_time = time.strftime("%Y-%m-%d", time.localtime())
 
         item['puduct_detail'] = {'所有商品': sell_counts, }
         print('###########', item)
+
+    def type_url_parse(self, type_url, type_name):
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36"
+        }
+        res = requests.get(type_url, headers=headers)
+        html = res.content.decode()
+        response = etree.HTML(html)
+        product_list = response.xpath('//ul[@class="product_menu"]/li')
+        """7天新款、30天新款"""
+        for product in product_list:
+            update_p = product.xpath('./p[@class="business_text"]/span/text()')
+            pattern_01 = re.findall("更新：\d+分钟前|更新：\d+小时前", update_p)  # 7天内
+
+            # pattern_02
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
